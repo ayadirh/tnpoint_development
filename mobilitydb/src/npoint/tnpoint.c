@@ -44,6 +44,7 @@
 #include "pg_general/temporal_catalog.h"
 #include "pg_npoint/tnpoint_static.h"
 
+
 /*****************************************************************************
  * General functions
  *****************************************************************************/
@@ -231,3 +232,281 @@ Tnpoint_routes(PG_FUNCTION_ARGS)
 }
 
 /*****************************************************************************/
+
+/*****************************************************************************
+ * TnPoint Complex
+ *****************************************************************************/
+
+PG_FUNCTION_INFO_V1(Tgeompoint_to_TnpointComplex);
+/**
+ * Cast a temporal geometric point as a temporal network point
+ */
+PGDLLEXPORT Datum
+Tgeompoint_to_TnpointComplex(PG_FUNCTION_ARGS)
+{
+    Temporal *temp = PG_GETARG_TEMPORAL_P(0);
+    Datum result = tgeompoint_tnpointComplex(fcinfo, temp);
+    PG_FREE_IF_COPY(temp, 0);
+    // if (result == NULL)
+    //     PG_RETURN_NULL();
+    PG_RETURN_DATUM(result);
+    // PG_RETURN_POINTER(DatumGetPointer(result));
+    // PG_RETURN_POINTER(result);
+    //PG_RETURN_NULL();
+}
+
+// /**
+//  * @brief Parse a temporal value from the buffer (dispatch function).
+//  *
+//  * @param[in] str Input string
+//  */
+// Temporal *
+// temporal_parse_c(char **str)
+// {
+//   //p_whitespace(str);
+//     Temporal *result_tn = NULL;  /* keep compiler quiet */
+//     Temporal *result_tg = NULL;  /* keep compiler quiet */
+    
+//   // /* Starts with "Interp=Stepwise;" */
+//   // if (strncasecmp(*str, "Interp=Stepwise;", 16) == 0)
+//   // {
+//   //   /* Move str after the semicolon */
+//   //   *str += 16;
+//   //   linear = false;
+//   // }
+//   //find the comma
+//   int comma_position = NULL;
+//   int counter = 0;
+//   for(i=0;i++){
+//     if(**str[i]==NULL)
+//         break;
+//     else if(**str[i]=='","'){
+//         comma_postion=i;
+//     }
+//     counter++;
+//   }
+
+//   //get from postion 0 to comma_position as tnpoints
+//   //"{[NPoint(1,0)@2000-01-01 00:00:00+01]}"
+  
+//   if (**str != '{' && **str != '[' && **str != '(')
+//     //tinstant_parse
+
+//   else if (**str == '{')
+//   {
+//     // next_position_on_str
+//     if (**str == '[' || **str == '(')
+//     {
+//       // *str = bak;
+//       result = (Temporal *) tsequenceset_parse(str, temptype, linear);
+//     }
+//     else
+//     {
+//       // *str = bak;
+//       result = (Temporal *) tinstantset_parse(str, temptype);
+//     }
+//   }
+//   //tinstantset_parse
+//   //tsequenceset_parse
+
+//   //get from comma_position as tgeompoints
+//   //"{[0101000020E61000005A17128B7337114047D4FA1175654940@2000-01-01 00:00:00+01, 0101000020E6100000680355489E581140F2333F4860744A40@2000-01-02 00:00:00+01)}"
+//     if (**str != '{' && **str != '[' && **str != '(')
+//     //tinstant_parse
+
+//   else if (**str == '{')
+//   {
+//     // next_position_on_str
+//     if (**str == '[' || **str == '(')
+//     {
+//       // *str = bak;
+//       result = (Temporal *) tsequenceset_parse(str, temptype, linear);
+//     }
+//     else
+//     {
+//       // *str = bak;
+//       result = (Temporal *) tinstantset_parse(str, temptype);
+//     }
+//   }
+
+//   // if (**str != '{' && **str != '[' && **str != '(')
+//   //   result = (Temporal *) tinstant_parse(str, temptype, true, true);
+//   // else if (**str == '[' || **str == '(')
+//   //   result = (Temporal *) tsequence_parse(str, temptype, linear, true, true);
+//   // else if (**str == '{')
+//   // {
+//   //   char *bak = *str;
+//   //   p_obrace(str);
+//   //   p_whitespace(str);
+//   //   if (**str == '[' || **str == '(')
+//   //   {
+//   //     *str = bak;
+//   //     result = (Temporal *) tsequenceset_parse(str, temptype, linear);
+//   //   }
+//   //   else
+//   //   {
+//   //     *str = bak;
+//   //     result = (Temporal *) tinstantset_parse(str, temptype);
+//   //   }
+//   // }
+//   // return result;
+// }
+
+/**
+ * @brief Cast a temporal network point as a temporal geometric point.
+ */
+Temporal *
+tnpoint_tgeompoint_c(const Temporal *temp)
+{
+  Temporal *result;
+  ensure_valid_tempsubtype(temp->subtype);
+  printf("ok\n");
+  fflush(stdout);
+  if (temp->subtype == TINSTANT)
+    result = (Temporal *) tnpointinst_tgeompointinst((TInstant *) temp);
+  else if (temp->subtype == TINSTANTSET)
+    result = (Temporal *) tnpointinstset_tgeompointinstset((TInstantSet *) temp);
+  else if (temp->subtype == TSEQUENCE)
+    result = (Temporal *) tnpointseq_tgeompointseq((TSequence *) temp);
+  else /* temp->subtype == TSEQUENCESET */
+    result = (Temporal *) tnpointseqset_tgeompointseqset((TSequenceSet *) temp);
+  return result;
+}
+
+ Temporal* datum_from_heap_tupple(HeapTupleHeader hth, char *attribute, bool *flag){
+    return (Temporal *)GetAttributeByName(hth, attribute, &flag);
+}
+
+PG_FUNCTION_INFO_V1(TnpointComplex_to_tgeompoint);
+/**
+ * @ingroup mobilitydb_temporal_cast
+ * @brief Cast a temporal complex network point as a temporal geometric point
+ * @sqlfunc tgeompoint()
+ */
+PGDLLEXPORT Datum
+TnpointComplex_to_tgeompoint(PG_FUNCTION_ARGS)
+{
+  // Temporal *temp = PG_GETARG_TEMPORAL_P(0);
+    // Temporal *result = tnpoint_tgeompoint(temp);
+  Temporal *result = NULL;
+  //PG_FREE_IF_COPY(temp, 0);
+  //PG_RETURN_POINTER(result);
+
+    // HeapTupleHeader input = PG_GETARG_HEAPTUPLEHEADER(0);
+    // HeapTupleHeader input1 = PG_GETARG_HEAPTUPLEHEADER(0);
+    bool isnull01;
+    bool isnull02;
+
+    // Datum tnp = GetAttributeByName(input, "tnpoints", &isnull01);
+    // Datum tgm = GetAttributeByName(input1, "tgeompoints", &isnull02);
+
+    Temporal* tnp = datum_from_heap_tupple(PG_GETARG_HEAPTUPLEHEADER(0), "tnpoints", &isnull01);
+    //Datum tgm = datum_from_heap_tupple(PG_GETARG_HEAPTUPLEHEADER(0), "tgeompoints", &isnull02);
+
+    // tn01 = text_to_cstring(PG_GETARG_TEXT_P(0));
+    // tg01 = text_to_cstring(PG_GETARG_TEXT_P(1));
+    if(!isnull01){
+        printf("tnpoints is not null \n");
+        // printf(": %lu \n", tnp);
+        // fflush(stdout);
+        printf("ok1\n");
+        fflush(stdout);
+        //Temporal *tnp_temp = (Temporal *) PG_DETOAST_DATUM(tnp);
+        // printf("ok2\n");
+        // fflush(stdout);
+        //printf("%d\n", VARSIZE(tnp_temp));
+        //fflush(stdout);
+        //printf("%d\n", tnp_temp->subtype);
+        //fflush(stdout);
+        //cast it to tnpoints
+        result = tnpoint_tgeompoint_c(tnp);
+        PG_RETURN_POINTER(result);
+    }else{
+        printf("tnpoints is null \n");
+        fflush(stdout);
+        PG_RETURN_NULL();
+    }
+    //
+
+
+    // TnpointComplex tnc = (TnpointComplex *)PG_DETOAST_DATUM(0);
+    
+    // HeapTupleHeader tg = PG_GETARG_HEAPTUPLEHEADER(1);
+    // HeapTuple *tnc = (HeapTuple *)PG_GETARG_DATUM(0);
+    //Datum *tg = PG_GETARG_DATUM(1);
+    //Temporal *result_01 = tnpoint_tgeompoint((const Temporal **)tn);
+    PG_RETURN_NULL();
+}
+
+PG_FUNCTION_INFO_V1(intComplex_to_int);
+/**
+ * demo
+ */
+PGDLLEXPORT Datum
+intComplex_to_int(PG_FUNCTION_ARGS){
+
+    HeapTupleHeader input = PG_GETARG_HEAPTUPLEHEADER(0);
+    bool isnull01;
+    bool isnull02;
+
+    int i = GetAttributeByName(input, "numbers", &isnull01);
+    char c = GetAttributeByName(input, "character", &isnull02);
+    printf("results: %d and %c \n", i, c);
+    fflush(stdout);
+
+    if(isnull01){
+        PG_RETURN_NULL();
+    }
+    PG_RETURN_INT32(i);
+
+    // Temporal* tnp = datum_from_heap_tupple(PG_GETARG_HEAPTUPLEHEADER(0), "tnpoints", &isnull01);
+    //Datum tgm = datum_from_heap_tupple(PG_GETARG_HEAPTUPLEHEADER(0), "tgeompoints", &isnull02);
+}
+
+PG_FUNCTION_INFO_V1(intPlus_to_int);
+/**
+ * demo
+ */
+PGDLLEXPORT Datum
+intPlus_to_int(PG_FUNCTION_ARGS){
+
+    HeapTupleHeader input = PG_GETARG_HEAPTUPLEHEADER(0);
+    bool isnull01;
+    bool isnull02;
+
+    int i = GetAttributeByName(input, "numbers", &isnull01);
+    Datum c = GetAttributeByName(input, "tgeompoints", &isnull02);
+
+    Temporal *d = DatumGetPointer(GetAttributeByName(input, "tgeompoints", &isnull02));
+    Datum b = PointerGetDatum((Temporal *)PG_DETOAST_DATUM(c)); 
+    Temporal *a = (Temporal *)PG_DETOAST_DATUM(c);
+    if(isnull02){
+        PG_RETURN_NULL();
+    }
+    PG_RETURN_DATUM(b);
+
+    // Temporal* tnp = datum_from_heap_tupple(PG_GETARG_HEAPTUPLEHEADER(0), "tnpoints", &isnull01);
+    //Datum tgm = datum_from_heap_tupple(PG_GETARG_HEAPTUPLEHEADER(0), "tgeompoints", &isnull02);
+}
+
+
+PG_FUNCTION_INFO_V1(tnpointandtgeompoint_to_tgeompoint);
+/**
+ * demo
+ */
+PGDLLEXPORT Datum
+tnpointandtgeompoint_to_tgeompoint(PG_FUNCTION_ARGS){
+
+    Temporal *tnpoints = PG_GETARG_TEMPORAL_P(0);
+    Temporal *tgeompoints = PG_GETARG_TEMPORAL_P(0);
+    bool isnull01;
+    bool isnull02;
+
+    Temporal *result01 = tnpoint_tgeompoint(tnpoints);
+    //Temporal merge two tgeompoints
+    //result01 and tgeompoints as Temporal *result
+
+    PG_FREE_IF_COPY(tnpoints, 0);
+    // PG_RETURN_NULL();
+    PG_RETURN_DATUM(PointerGetDatum(result01));
+}

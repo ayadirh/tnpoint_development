@@ -48,4 +48,6 @@ extern Temporal *tnpoint_round(const Temporal *temp, Datum size);
 
 /*****************************************************************************/
 
+// extern ArrayType * nsegmentarr_array(Nsegment **nsegmentarr, int count);
+
 #endif /* __TNPOINT_H__ */

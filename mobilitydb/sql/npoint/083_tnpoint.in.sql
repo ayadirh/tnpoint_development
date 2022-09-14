@@ -73,6 +73,54 @@ CREATE TYPE tnpoint (
   analyze = tnpoint_analyze
 );
 
+-- Creating type for TNpoint (Complex)
+CREATE TYPE tnpointComplex AS (
+  tnpoints tnpoint,
+  tgeompoints tgeompoint
+);
+
+-- Creating type for intComplex (Complex)
+CREATE TYPE intComplex AS (
+  numbers int,
+  character char
+);
+
+-- Creating type for intComplex (Complex)
+CREATE TYPE intPlus AS (
+  numbers int,
+  tgeompoints tgeompoint
+);
+
+-- CREATE FUNCTION tnpoint_in_c(cstring, oid, integer)
+--   RETURNS tnpointComplex
+--   AS 'MODULE_PATHNAME', 'Tnpoint_in'
+--   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+-- CREATE FUNCTION temporal_out_c(tnpointComplex)
+--   RETURNS cstring
+--   AS 'MODULE_PATHNAME', 'Temporal_out'
+--   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+-- CREATE FUNCTION tnpoint_recv_c(internal, oid, integer)
+--   RETURNS tnpointComplex
+--   AS 'MODULE_PATHNAME', 'Temporal_recv'
+--   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+-- CREATE FUNCTION temporal_send_c(tnpointComplex)
+--   RETURNS bytea
+--   AS 'MODULE_PATHNAME', 'Temporal_send'
+--   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+-- CREATE FUNCTION tnpoint_analyze_c(internal)
+--   RETURNS boolean
+--   AS 'MODULE_PATHNAME', 'Tnpoint_analyze'
+--   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+-- CREATE TYPE tnpointComplex (
+--   internallength = variable,
+--   input = tnpoint_in_c,
+--   output = temporal_out_c,
+--   storage = extended,
+--   alignment = double
+-- );
+
 -- Special cast for enforcing the typmod restrictions
 CREATE FUNCTION tnpoint(tnpoint, integer)
   RETURNS tnpoint
@@ -667,3 +715,42 @@ CREATE OPERATOR CLASS hash_tnpoint_ops
     FUNCTION    1   tnpoint_hash(tnpoint);
 
 /******************************************************************************/
+
+-- Defining functions to cast tgeompoint into tnpointcomplex
+CREATE FUNCTION tnpointComplex(tgeompoint)
+    RETURNS tnpointComplex
+AS 'MODULE_PATHNAME', 'Tgeompoint_to_TnpointComplex'
+    LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+CREATE CAST (tgeompoint AS tnpointComplex) WITH FUNCTION tnpointComplex(tgeompoint);
+
+-- Defining functions to cast tnpointcomplex into tgeompoint
+CREATE FUNCTION tgeomPointer(tnpointComplex)
+    RETURNS tgeompoint
+AS 'MODULE_PATHNAME', 'TnpointComplex_to_tgeompoint'
+    LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+CREATE CAST (tnpointComplex AS tgeompoint) WITH FUNCTION tgeomPointer(tnpointComplex);
+
+
+
+-- Defining functions to cast intComplex into int
+CREATE FUNCTION changer(intComplex)
+    RETURNS int
+AS 'MODULE_PATHNAME', 'intComplex_to_int'
+    LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+CREATE CAST (intComplex AS int) WITH FUNCTION changer(intComplex);
+
+-- Defining functions to cast intPlus into int
+CREATE FUNCTION changerPlus(intPlus)
+    RETURNS tgeompoint
+AS 'MODULE_PATHNAME', 'intPlus_to_int'
+    LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+CREATE CAST (intPlus AS tgeompoint) WITH FUNCTION changerPlus(intPlus);
+
+CREATE FUNCTION transform_tnpoint_and_tgeompoint(tnpoint, tgeompoint)
+    RETURNS tgeompoint
+AS 'MODULE_PATHNAME', 'tnpointandtgeompoint_to_tgeompoint'
+    LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;

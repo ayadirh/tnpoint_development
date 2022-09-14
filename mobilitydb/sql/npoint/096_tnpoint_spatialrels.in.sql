@@ -186,3 +186,56 @@ CREATE FUNCTION dwithin(tnpoint, tnpoint, dist float8)
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
 /*****************************************************************************/
+
+/* Within Tnpoints */
+CREATE FUNCTION contains1(tnpoint,npoint)
+  RETURNS boolean
+  AS 'MODULE_PATHNAME', 'contains1_tnpoint_npoint'
+  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+CREATE FUNCTION closest1(tnpoint,npoint)
+  RETURNS npoint
+  AS 'MODULE_PATHNAME', 'closest1_tnpoint_npoint'
+  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+CREATE FUNCTION passes0(tnpoint,nsegment)
+  RETURNS boolean
+  AS 'MODULE_PATHNAME', 'contains1_tnpoint_nsegment'
+  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+CREATE FUNCTION passes1(tnpoint,nsegment)
+  RETURNS nsegment[]
+  AS 'MODULE_PATHNAME', 'passes1_tnpoint_nsegment'
+  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+CREATE TYPE distanceTuple AS (
+  shortestdistance_toRoad float,
+  distance_onRoad float,
+  closestpoint_onTraj npoint
+);
+
+CREATE TYPE nearbyTuple AS (
+  road_id bigint
+  shortest_distance float,
+  closest_npoint npoint
+);
+
+CREATE FUNCTION distances1(tnpoint, geometry)
+  RETURNS distanceTuple
+  AS 'MODULE_PATHNAME', 'distances1_tnpoint_geometry'
+  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+CREATE FUNCTION getDistance1(npoint, npoint, bool)
+  RETURNS double precision
+  AS 'MODULE_PATHNAME', 'find_npoint_distance'
+  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+-- CREATE FUNCTION getNearbyRoads1(geometry, int)
+--   RETURNS setof bigint
+--   AS 'MODULE_PATHNAME', 'get_nearby_roads'
+--   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+  CREATE FUNCTION getNearbyRoads1(geometry, int)
+  RETURNS setof nearbyTuple
+  AS 'MODULE_PATHNAME', 'get_nearby_roads'
+  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;

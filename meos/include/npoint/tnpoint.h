@@ -118,5 +118,6 @@ extern int64 *tnpoint_routes(const Temporal *temp, int *count);
 extern Nsegment *tnpointseq_linear_positions(const TSequence *seq);
 
 /*****************************************************************************/
+extern Datum tgeompoint_tnpointComplex(FunctionCallInfo fcinfo, const Temporal *temp);
 
 #endif /* __TNPOINT_H__ */

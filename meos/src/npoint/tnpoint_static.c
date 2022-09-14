@@ -588,6 +588,8 @@ geom_npoint(const GSERIALIZED *gs)
     }
   }
   SPI_finish();
+  // printf("geom_npoint #591 \n");
+  // fflush(stdout);
   if (isNull)
   {
     pfree(result);

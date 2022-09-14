@@ -60,5 +60,7 @@ extern int dwithin_tnpoint_tnpoint(const Temporal *temp1,
   const Temporal *temp2, double dist);
 
 /*****************************************************************************/
+/* Changes */
+extern Datum spatialrel1_tnpoint_npoint_ext(FunctionCallInfo fcinfo);
 
 #endif /* __TNPOINT_SPATIALRELS_H__ */
