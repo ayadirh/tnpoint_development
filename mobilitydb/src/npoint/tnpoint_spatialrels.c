@@ -1174,6 +1174,11 @@ get_nearby_roads_ext_3(FunctionCallInfo fcinfo)
   Npoint **result_in_npoint=palloc(sizeof(Npoint)*limit);
   bool *result_in_bool=palloc(sizeof(bool)*limit);
   // int64 result;
+  /* Build a tuple description for the function output */
+  TupleDesc resultTupleDesc;
+  //FunctionCallInfo fcinfo
+  get_call_result_type(fcinfo, NULL, &resultTupleDesc);
+  BlessTupleDesc(resultTupleDesc);
 
   bool result_is_null[3]={0,0,0};
   Datum result_values[3]; //Used to Construct the Composite Return Value
@@ -1245,14 +1250,137 @@ get_nearby_roads_ext_3(FunctionCallInfo fcinfo)
 
     if (call_cntr < max_calls)    /* do when there is more left to send */
     {
-      result_values[0]=result_in_gid[call_cntr];
-      result_values[1]=result_in_distance[call_cntr];
+      bool result_is_null[3]={0,0,0};
+      result_values[0]=(Datum)result_in_gid[call_cntr];
+      result_values[1]=Float8GetDatum(result_in_distance[call_cntr]);
       result_values[2]=PointerGetDatum(result_in_npoint[call_cntr]);
-      if(!result_in_bool[call_cntr]){
-        // result_is_null[3]= {1,1,1};
+
+      // result_values[0]=Int32GetDatum(1);
+      // result_values[1]=Int32GetDatum(1);
+      // result_values[2]=Int32GetDatum(1);
+      if(result_in_bool[call_cntr]){
+        result_is_null[0]= 1;
+        result_is_null[1]= 1;
+        result_is_null[2]= 1;
       }
       /* Form tuple and return */
-      tuple = heap_form_tuple(funcctx->tuple_desc, result_values, result_is_null);
+      tuple = heap_form_tuple(resultTupleDesc, result_values, result_is_null);
+      //funcctx->tuple_desc
+      result_combined = HeapTupleGetDatum(tuple);
+      // result = result_in_gid[call_cntr];
+      SRF_RETURN_NEXT(funcctx, result_combined);
+    }else{
+      SRF_RETURN_DONE(funcctx);
+    }    
+}
+
+Datum
+get_nearby_roads_ext_4(FunctionCallInfo fcinfo)
+// , const GSERIALIZED *gs, const int limit)
+{
+  GSERIALIZED *gs =((GSERIALIZED *)PG_DETOAST_DATUM(PG_GETARG_DATUM(0)));
+  int size = PG_GETARG_INT32(1);
+  int limit = PG_GETARG_INT32(2);
+  FuncCallContext *funcctx;
+  int call_cntr;
+  int max_calls;
+  int64 *result_in_gid=palloc(sizeof(int64)*limit);
+  float *result_in_distance=palloc(sizeof(float)*limit);
+  Npoint **result_in_npoint=palloc(sizeof(Npoint)*limit);
+  bool *result_in_bool=palloc(sizeof(bool)*limit);
+  // int64 result;
+  /* Build a tuple description for the function output */
+  TupleDesc resultTupleDesc;
+  //FunctionCallInfo fcinfo
+  get_call_result_type(fcinfo, NULL, &resultTupleDesc);
+  BlessTupleDesc(resultTupleDesc);
+
+  bool result_is_null[3]={0,0,0};
+  Datum result_values[3]; //Used to Construct the Composite Return Value
+  HeapTuple tuple;
+  Datum result_combined; /*Returned Composite Value*/
+
+    /* Ensure validity of operation */
+    ensure_non_empty(gs);
+    ensure_point_type(gs);
+    int32_t srid_geom = gserialized_get_srid(gs);
+    int32_t srid_ways = get_srid_ways();
+    ensure_same_srid(srid_geom, srid_ways);
+
+    char *geomstr = ewkt_out(0, PointerGetDatum(gs), OUT_DEFAULT_DECIMAL_DIGITS);
+    char sql[512];
+    sprintf(sql, "SELECT gid, ST_Distance(the_geom,'%s'), npoint(gid, ST_LineLocatePoint(the_geom, ST_ClosestPoint(the_geom,'%s'))) FROM public.ways WHERE ST_Intersects(st_buffer('%s'::geography, %d)::geometry, the_geom) ORDER BY ST_Distance(the_geom,'%s') LIMIT %d", geomstr, geomstr, geomstr, size, geomstr, limit);
+    
+    pfree(geomstr);
+    bool isNull = true;
+    SPI_connect();
+
+    int ret = SPI_execute(sql, true, limit);
+    uint64 proc = SPI_processed;
+
+    // int64 result;
+    if (ret > 0 && proc > 0 && SPI_tuptable != NULL)
+    {
+
+      SPITupleTable *tuptable = SPI_tuptable;
+      for(uint64 i=0;i<tuptable->numvals;i++){
+        Datum value = SPI_getbinval(tuptable->vals[i], tuptable->tupdesc, 1, &isNull);
+        result_in_bool[i] = isNull;
+        if (!isNull)
+        {
+          result_in_gid[i] = DatumGetInt64(value);
+          result_in_distance[i] = DatumGetFloat8(SPI_getbinval(tuptable->vals[i], tuptable->tupdesc, 2, &isNull));
+          result_in_npoint[i] = DatumGetNpointP(SPI_getbinval(tuptable->vals[i], tuptable->tupdesc, 3, &isNull));
+        }
+      }
+
+    }
+
+    SPI_finish();
+    if (isNull)
+    {
+      elog(ERROR, "Cannot get the nearest routeid");
+    }
+    
+    /*for first function call*/
+    if(SRF_IS_FIRSTCALL()){
+
+      /*Initialize the FuncCallContext */
+      funcctx = SRF_FIRSTCALL_INIT();
+
+      /*Switch to memory context appropriate for multiple function calls */
+      MemoryContext oldcontext = MemoryContextSwitchTo(funcctx->multi_call_memory_ctx);
+
+      /* total number of tuples to be returned */
+      funcctx->max_calls = limit;
+
+      MemoryContextSwitchTo(oldcontext);
+    }
+
+     /* stuff done on every call of the function */
+    funcctx = SRF_PERCALL_SETUP();
+
+    call_cntr = funcctx->call_cntr;
+    max_calls = funcctx->max_calls;
+
+    if (call_cntr < max_calls)    /* do when there is more left to send */
+    {
+      bool result_is_null[3]={0,0,0};
+      result_values[0]=(Datum)result_in_gid[call_cntr];
+      result_values[1]=Float8GetDatum(result_in_distance[call_cntr]);
+      result_values[2]=PointerGetDatum(result_in_npoint[call_cntr]);
+
+      // result_values[0]=Int32GetDatum(1);
+      // result_values[1]=Int32GetDatum(1);
+      // result_values[2]=Int32GetDatum(1);
+      if(result_in_bool[call_cntr]){
+        result_is_null[0]= 1;
+        result_is_null[1]= 1;
+        result_is_null[2]= 1;
+      }
+      /* Form tuple and return */
+      tuple = heap_form_tuple(resultTupleDesc, result_values, result_is_null);
+      //funcctx->tuple_desc
       result_combined = HeapTupleGetDatum(tuple);
       // result = result_in_gid[call_cntr];
       SRF_RETURN_NEXT(funcctx, result_combined);
@@ -1283,7 +1411,18 @@ get_nearby_roads(PG_FUNCTION_ARGS)
   // result = get_nearby_roads_ext(gs,limit);
   // //PG_RETURN_NULL();
   // PG_RETURN_CSTRING(result);
-  return get_nearby_roads_ext_2(fcinfo);
+  return get_nearby_roads_ext_3(fcinfo);
+}
+
+PG_FUNCTION_INFO_V1(get_nearby_roads_2);
+/**
+ * Return the distances and related attributes between tempral network point trajectory and the
+ * geometry
+ */
+PGDLLEXPORT Datum
+get_nearby_roads_2(PG_FUNCTION_ARGS)
+{
+  return get_nearby_roads_ext_4(fcinfo);
 }
 
 

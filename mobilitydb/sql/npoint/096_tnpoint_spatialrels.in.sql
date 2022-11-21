@@ -215,7 +215,7 @@ CREATE TYPE distanceTuple AS (
 );
 
 CREATE TYPE nearbyTuple AS (
-  road_id bigint
+  road_id bigint,
   shortest_distance float,
   closest_npoint npoint
 );
@@ -238,4 +238,9 @@ CREATE FUNCTION getDistance1(npoint, npoint, bool)
   CREATE FUNCTION getNearbyRoads1(geometry, int)
   RETURNS setof nearbyTuple
   AS 'MODULE_PATHNAME', 'get_nearby_roads'
+  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+  CREATE FUNCTION getNearbyRoads1(geometry, int, int)
+  RETURNS setof nearbyTuple
+  AS 'MODULE_PATHNAME', 'get_nearby_roads_2'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
